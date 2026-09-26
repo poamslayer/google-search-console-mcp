@@ -11,7 +11,8 @@ import { createServer } from './server'
 // The execute sandbox's outbound fetch goes through this entrypoint.
 export { GscOutbound } from './tools/execute'
 
-export const MCP_ROUTE = '/mcp'
+// Not exported: Workers accepts only handlers and entrypoints from the main module.
+const MCP_ROUTE = '/mcp'
 
 const ALLOWED_HOSTNAMES = [...localhostAllowedHostnames()]
 const ALLOWED_ORIGINS = [...localhostAllowedOrigins()]
