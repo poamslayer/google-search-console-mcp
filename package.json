@@ -1,0 +1,36 @@
+{
+  "name": "google-search-console-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Code Mode MCP server for the Google Search Console API on Cloudflare Workers",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "types": "wrangler types --env-file .dev.vars.example",
+    "spec:build": "tsx scripts/build-spec.ts",
+    "spec:drift": "tsx scripts/check-spec-drift.ts",
+    "typecheck": "npm run types && tsc --noEmit",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm run test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "2.0.0",
+    "zod": "^4.3.5"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.16.18",
+    "@modelcontextprotocol/client": "2.0.0",
+    "@types/node": "^25.0.6",
+    "msw": "^2.14.6",
+    "tsx": "^4.22.4",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.8",
+    "wrangler": "^4.103.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true,
+    "workerd@1.20260625.1": true,
+    "workerd@1.20260925.1": true
+  }
+}
