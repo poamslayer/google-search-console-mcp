@@ -11,6 +11,10 @@ export interface SandboxRun {
   prelude: string
   /** Where the sandbox's fetch() goes. `null` means no network at all. */
   globalOutbound: Fetcher | null
+  /** CPU and request limits the runtime enforces inside the sandbox. */
+  limits?: { cpuMs?: number; subRequests?: number }
+  /** Wall time after which the host stops waiting. */
+  timeoutMs?: number
 }
 
 type Outcome = { result: unknown; err?: undefined } | { result?: undefined; err: string }
@@ -24,6 +28,7 @@ export async function runInSandbox(loader: WorkerLoader, run: SandboxRun): Promi
   const worker = loader.load({
     compatibilityDate: COMPATIBILITY_DATE,
     globalOutbound: run.globalOutbound,
+    ...(run.limits && { limits: run.limits }),
     mainModule: 'sandbox.js',
     modules: {
       'sandbox.js': `
@@ -43,7 +48,23 @@ export default class Sandbox extends WorkerEntrypoint {
   })
 
   const entrypoint = worker.getEntrypoint() as unknown as { evaluate(): Promise<Outcome> }
-  const outcome = await entrypoint.evaluate()
+  const outcome = await withTimeout(entrypoint.evaluate(), run.timeoutMs)
   if (outcome.err !== undefined) throw new Error(outcome.err)
   return outcome.result
+}
+
+async function withTimeout<T>(work: Promise<T>, timeoutMs: number | undefined): Promise<T> {
+  if (timeoutMs === undefined) return work
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error(`Execution timed out after ${timeoutMs / 1000} seconds`)),
+      timeoutMs
+    )
+  })
+  try {
+    return await Promise.race([work, timeout])
+  } finally {
+    clearTimeout(timer)
+  }
 }

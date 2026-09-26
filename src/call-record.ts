@@ -30,6 +30,10 @@ export function addEntry(runId: string, entry: CallRecordEntry): number {
   return entries.push(entry) - 1
 }
 
+export function entryCount(runId: string): number {
+  return runs.get(runId)?.length ?? 0
+}
+
 export function updateEntry(runId: string, index: number, update: Partial<CallRecordEntry>): void {
   const entry = runs.get(runId)?.[index]
   if (entry) Object.assign(entry, update)

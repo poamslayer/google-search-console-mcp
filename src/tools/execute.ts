@@ -3,12 +3,21 @@
 import { WorkerEntrypoint, exports } from 'cloudflare:workers'
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/server'
-import { addEntry, closeRun, openRun, updateEntry } from '../call-record'
+import { addEntry, closeRun, entryCount, openRun, updateEntry } from '../call-record'
 import { formatError } from '../errors'
 import { runInSandbox } from '../sandbox'
 import { matchOperation } from '../spec/operations'
 
 type OutboundProps = { token: string; runId: string }
+
+/**
+ * Execution limits for one run (ADR-0005). This entrypoint enforces the
+ * request cap itself, because the runtime's own subRequests limit is not
+ * enforced in local development and so cannot be tested. The CPU limit is left
+ * to the runtime. The wall time comes from EXECUTE_TIMEOUT_MS.
+ */
+export const MAX_REQUESTS = 50
+const RUNTIME_LIMITS = { cpuMs: 10_000 }
 
 /**
  * Every fetch() from an execute sandbox arrives here. It refuses other hosts,
@@ -22,6 +31,10 @@ export class GscOutbound extends WorkerEntrypoint<Env, OutboundProps> {
     const url = new URL(request.url)
 
     const rejected = { httpMethod: request.method, write: false, status: 'rejected' as const }
+    if (entryCount(runId) >= MAX_REQUESTS) {
+      addEntry(runId, { ...rejected, methodId: null, property: null, reason: 'request limit reached' })
+      return refuse(`One run may send at most ${MAX_REQUESTS} requests.`)
+    }
     if (url.host !== base.host) {
       addEntry(runId, { ...rejected, methodId: null, property: null, reason: `requests to ${url.host} are not allowed` })
       return refuse(`Requests to ${url.host} are not allowed. Only the Search Console API is reachable.`)
@@ -100,7 +113,7 @@ declare const gsc: {
 
 Name the property in the path, URL-encoded. Find properties with sites.list. One website often has both a Domain property (sc-domain:example.com) and a URL-prefix property (https://example.com/), and they report different numbers, so always say which property you used.
 
-Only Search Console API methods from the spec can be sent. Writes are not enabled yet.
+Only Search Console API methods from the spec can be sent. Writes are not enabled yet. One run may send at most ${MAX_REQUESTS} requests and must finish within 30 seconds.
 
 The response has two parts: "result" is what your code returned, and "callRecord" lists every request your code sent and what happened to it.
 
@@ -134,7 +147,9 @@ export function registerExecuteTool(server: McpServer, env: Env): void {
         const result = await runInSandbox(env.LOADER, {
           code,
           prelude: prelude(env.GSC_API_BASE),
-          globalOutbound: exports.GscOutbound({ props: { token: env.GSC_ACCESS_TOKEN, runId } })
+          globalOutbound: exports.GscOutbound({ props: { token: env.GSC_ACCESS_TOKEN, runId } }),
+          limits: RUNTIME_LIMITS,
+          timeoutMs: Number(env.EXECUTE_TIMEOUT_MS)
         })
         return { content: [{ type: 'text', text: JSON.stringify({ result, callRecord: closeRun(runId) }, null, 2) }] }
       } catch (error) {

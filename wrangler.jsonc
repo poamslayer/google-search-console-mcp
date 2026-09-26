@@ -5,7 +5,8 @@
 	"compatibility_date": "2026-01-12",
 	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
 	"vars": {
-		"GSC_API_BASE": "https://searchconsole.googleapis.com/"
+		"GSC_API_BASE": "https://searchconsole.googleapis.com/",
+		"EXECUTE_TIMEOUT_MS": "30000"
 	},
 	// GSC_ACCESS_TOKEN comes from .dev.vars until OAuth replaces it.
 	"worker_loaders": [{ "binding": "LOADER" }],
