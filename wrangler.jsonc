@@ -1,0 +1,13 @@
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "google-search-console-mcp-dev",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-01-12",
+	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+	"vars": {
+		"GSC_API_BASE": "https://searchconsole.googleapis.com/"
+	},
+	// GSC_ACCESS_TOKEN comes from .dev.vars until OAuth replaces it.
+	"worker_loaders": [{ "binding": "LOADER" }],
+	"dev": { "port": 2530 }
+}

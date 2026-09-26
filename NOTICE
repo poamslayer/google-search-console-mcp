@@ -1,0 +1,6 @@
+google-search-console-mcp
+Copyright 2026 Arnold De La Vega
+
+This project adapts code from cloudflare/mcp (https://github.com/cloudflare/mcp),
+Copyright Cloudflare, Inc., licensed under the Apache License, Version 2.0.
+Adapted files carry a header naming the original file and stating that it was modified.
