@@ -8,6 +8,9 @@ import {
 import { env } from 'cloudflare:workers'
 import { createServer } from './server'
 
+// The execute sandbox's outbound fetch goes through this entrypoint.
+export { GscOutbound } from './tools/execute'
+
 export const MCP_ROUTE = '/mcp'
 
 const ALLOWED_HOSTNAMES = [...localhostAllowedHostnames()]
