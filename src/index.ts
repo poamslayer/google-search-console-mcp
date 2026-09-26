@@ -5,6 +5,7 @@ import {
   localhostAllowedOrigins,
   originValidationResponse
 } from '@modelcontextprotocol/server'
+import { env } from 'cloudflare:workers'
 import { createServer } from './server'
 
 export const MCP_ROUTE = '/mcp'
@@ -14,7 +15,7 @@ const ALLOWED_ORIGINS = [...localhostAllowedOrigins()]
 
 // Stateless: a fresh server per request, and no subscriptions, so no SSE
 // stream pins an isolate. Same choice as cloudflare/mcp src/mcp-handler.ts.
-const handler = createMcpHandler(() => createServer(), { maxSubscriptions: 0 })
+const handler = createMcpHandler(() => createServer(env), { maxSubscriptions: 0 })
 
 export default {
   async fetch(request: Request): Promise<Response> {

@@ -7,7 +7,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "types": "wrangler types",
+    "types": "wrangler types --env-file .dev.vars.example",
     "spec:build": "tsx scripts/build-spec.ts",
     "spec:drift": "tsx scripts/check-spec-drift.ts",
     "typecheck": "npm run types && tsc --noEmit",
