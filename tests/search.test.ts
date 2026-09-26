@@ -42,4 +42,12 @@ describe('the search tool', () => {
     expect(result.result?.isError).toBe(true)
     expect(toolText(result)).toContain('no such method')
   })
+
+  it('caps a large result and keeps it valid JSON', async () => {
+    const result = await callTool('search', { code: `async () => spec` })
+    const text = toolText(result)
+    expect(text.length).toBeLessThanOrEqual(24_000)
+    expect(JSON.parse(text).revision).toBe('20260923')
+    expect(text).toContain('--- TRUNCATED ---')
+  })
 })

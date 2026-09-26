@@ -131,4 +131,39 @@ describe('the execute tool', () => {
     expect(result.result?.isError).toBe(true)
     expect(text).toMatch(/timed out/i)
   })
+
+  it('caps a large result and keeps the whole call record', async () => {
+    const rows = Array.from({ length: 25_000 }, (_, i) => ({
+      keys: [`query number ${i}`],
+      clicks: i,
+      impressions: i * 10,
+      ctr: 0.1,
+      position: 4.2
+    }))
+    server.use(
+      http.post(`${API}/webmasters/v3/sites/:site/searchAnalytics/query`, () =>
+        HttpResponse.json({ rows, responseAggregationType: 'byProperty' })
+      )
+    )
+    const { result, text } = await execute(`async () => gsc.request({
+      method: "POST",
+      path: "webmasters/v3/sites/" + encodeURIComponent("sc-domain:vividtc.com") + "/searchAnalytics/query",
+      body: { startDate: "2026-09-01", endDate: "2026-09-07", dimensions: ["query"], rowLimit: 25000 }
+    })`)
+    expect(result.result?.isError).toBeFalsy()
+    expect(text.length).toBeLessThanOrEqual(24_000)
+    const body = JSON.parse(text)
+    expect(body.result.rows[0]).toEqual(rows[0])
+    expect(body.result.rows.at(-1)).toMatch(/^--- TRUNCATED --- [\d,]+ more items$/)
+    expect(body.callRecord).toEqual([
+      {
+        methodId: 'searchanalytics.query',
+        httpMethod: 'POST',
+        property: 'sc-domain:vividtc.com',
+        write: false,
+        status: 'succeeded',
+        httpStatus: 200
+      }
+    ])
+  })
 })

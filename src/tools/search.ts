@@ -3,6 +3,7 @@ import type { McpServer } from '@modelcontextprotocol/server'
 import spec from '../spec/spec.generated.json'
 import { formatError } from '../errors'
 import { runInSandbox } from '../sandbox'
+import { truncateResponse } from '../truncate'
 
 const SPEC_JSON = JSON.stringify(spec)
 
@@ -50,7 +51,7 @@ export function registerSearchTool(server: McpServer, loader: WorkerLoader): voi
           prelude: `const spec = ${SPEC_JSON};`,
           globalOutbound: null
         })
-        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] }
+        return { content: [{ type: 'text', text: truncateResponse(result) }] }
       } catch (error) {
         return formatError(error)
       }

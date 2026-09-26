@@ -3,10 +3,11 @@
 import { WorkerEntrypoint, exports } from 'cloudflare:workers'
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/server'
-import { addEntry, closeRun, entryCount, openRun, updateEntry } from '../call-record'
+import { addEntry, closeRun, entryCount, openRun, updateEntry, type CallRecordEntry } from '../call-record'
 import { formatError } from '../errors'
 import { runInSandbox } from '../sandbox'
 import { matchOperation } from '../spec/operations'
+import { MAX_CHARS, shrinkToFit } from '../truncate'
 
 type OutboundProps = { token: string; runId: string }
 
@@ -64,6 +65,20 @@ export class GscOutbound extends WorkerEntrypoint<Env, OutboundProps> {
       throw error
     }
   }
+}
+
+/**
+ * Render a run as `{ result, callRecord }` within the result cap (ADR-0005).
+ * The call record is never cut, so the result gets whatever room it leaves.
+ */
+function formatRun(result: unknown, callRecord: CallRecordEntry[]): string {
+  const pretty = JSON.stringify({ result, callRecord }, null, 2)
+  if (pretty.length <= MAX_CHARS) return pretty
+  const compact = JSON.stringify({ result, callRecord })
+  if (compact.length <= MAX_CHARS) return compact
+  // Room left once the call record and the wrapper are in place.
+  const room = MAX_CHARS - JSON.stringify({ result: null, callRecord }).length + 'null'.length
+  return JSON.stringify({ result: shrinkToFit(result, Math.max(2, room)), callRecord })
 }
 
 /** A refusal shaped like a Google API error, so gsc.request reports it the same way. */
@@ -151,7 +166,7 @@ export function registerExecuteTool(server: McpServer, env: Env): void {
           limits: RUNTIME_LIMITS,
           timeoutMs: Number(env.EXECUTE_TIMEOUT_MS)
         })
-        return { content: [{ type: 'text', text: JSON.stringify({ result, callRecord: closeRun(runId) }, null, 2) }] }
+        return { content: [{ type: 'text', text: formatRun(result, closeRun(runId)) }] }
       } catch (error) {
         const callRecord = closeRun(runId)
         const message = error instanceof Error ? error.message : String(error)
