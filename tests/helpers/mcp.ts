@@ -1,5 +1,6 @@
 // Adapted from cloudflare/mcp tests/helpers/mcp.ts (Apache-2.0). Modified by Arnold De La Vega.
 import { exports } from 'cloudflare:workers'
+import { login } from './auth'
 
 export const MCP_URL = 'http://localhost/mcp'
 
@@ -13,11 +14,20 @@ export interface McpResult {
   error?: { code: number; message: string }
 }
 
-function rpc(method: string, params?: Record<string, unknown>): Request {
+// Tests that don't care who is logged in share one read-only login per file.
+let defaultToken: Promise<string> | undefined
+function tokenFor(token?: string): Promise<string> {
+  if (token) return Promise.resolve(token)
+  defaultToken ??= login().then((result) => result.accessToken)
+  return defaultToken
+}
+
+function rpc(method: string, token: string, params?: Record<string, unknown>): Request {
   return new Request(MCP_URL, {
     method: 'POST',
     headers: {
       Host: 'localhost',
+      Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
       // Streamable HTTP requires the client to accept both content types.
       Accept: 'application/json, text/event-stream'
@@ -36,10 +46,10 @@ async function parse(res: Response): Promise<McpResult> {
   return JSON.parse(text)
 }
 
-export async function initialize(): Promise<McpResult & { result?: { serverInfo?: { name: string } } }> {
+export async function initialize(token?: string): Promise<McpResult & { result?: { serverInfo?: { name: string } } }> {
   return parse(
     await exports.default.fetch(
-      rpc('initialize', {
+      rpc('initialize', await tokenFor(token), {
         protocolVersion: '2025-06-18',
         capabilities: {},
         clientInfo: { name: 'gsc-mcp-tests', version: '1.0.0' }
@@ -48,12 +58,12 @@ export async function initialize(): Promise<McpResult & { result?: { serverInfo?
   )
 }
 
-export async function listTools(): Promise<McpResult> {
-  return parse(await exports.default.fetch(rpc('tools/list')))
+export async function listTools(token?: string): Promise<McpResult> {
+  return parse(await exports.default.fetch(rpc('tools/list', await tokenFor(token))))
 }
 
-export async function callTool(name: string, args: Record<string, unknown>): Promise<McpResult> {
-  return parse(await exports.default.fetch(rpc('tools/call', { name, arguments: args })))
+export async function callTool(name: string, args: Record<string, unknown>, token?: string): Promise<McpResult> {
+  return parse(await exports.default.fetch(rpc('tools/call', await tokenFor(token), { name, arguments: args })))
 }
 
 /** The text of the first content block. */

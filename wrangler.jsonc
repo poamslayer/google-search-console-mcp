@@ -1,14 +1,20 @@
 {
 	"$schema": "./node_modules/wrangler/config-schema.json",
-	"name": "google-search-console-mcp-dev",
+	"name": "google-search-console-mcp",
 	"main": "src/index.ts",
 	"compatibility_date": "2026-01-12",
 	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
 	"vars": {
 		"GSC_API_BASE": "https://searchconsole.googleapis.com/",
-		"EXECUTE_TIMEOUT_MS": "30000"
+		"EXECUTE_TIMEOUT_MS": "30000",
+		"DAILY_EXECUTE_CAP": "500",
+		"MCP_RESOURCE": "http://localhost:2530/mcp"
 	},
-	// GSC_ACCESS_TOKEN comes from .dev.vars until OAuth replaces it.
+	// GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET come from .dev.vars locally
+	// and from `wrangler secret put` when deployed.
 	"worker_loaders": [{ "binding": "LOADER" }],
+	// workers-oauth-provider requires this exact binding name. It also holds
+	// login state, the refresh lock and the daily cap counters.
+	"kv_namespaces": [{ "binding": "OAUTH_KV" }],
 	"dev": { "port": 2530 }
 }

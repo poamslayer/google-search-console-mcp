@@ -15,11 +15,13 @@
     "check": "npm run typecheck && npm run test"
   },
   "dependencies": {
+    "@cloudflare/workers-oauth-provider": "0.10.2",
     "@modelcontextprotocol/server": "2.0.0",
+    "hono": "^4.13.9",
     "zod": "^4.3.5"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.16.18",
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
     "@modelcontextprotocol/client": "2.0.0",
     "@types/node": "^25.0.6",
     "msw": "^2.14.6",
