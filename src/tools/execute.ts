@@ -3,13 +3,16 @@
 import { WorkerEntrypoint, exports } from 'cloudflare:workers'
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/server'
-import { addEntry, closeRun, entryCount, openRun, updateEntry, type CallRecordEntry } from '../call-record'
+import type { AuthProps } from '../auth/props'
+import type { AccessLevel } from '../auth/pages'
+import { addEntry, closeRun, entryCount, openRun, updateEntry, writeCount, type CallRecordEntry } from '../call-record'
+import { takeDailyRun } from '../daily-cap'
 import { formatError } from '../errors'
 import { runInSandbox } from '../sandbox'
 import { matchOperation } from '../spec/operations'
 import { MAX_CHARS, shrinkToFit } from '../truncate'
 
-type OutboundProps = { token: string; runId: string }
+type OutboundProps = { token: string; runId: string; accessLevel: AccessLevel }
 
 /**
  * Execution limits for one run (ADR-0005). This entrypoint enforces the
@@ -18,6 +21,7 @@ type OutboundProps = { token: string; runId: string }
  * to the runtime. The wall time comes from EXECUTE_TIMEOUT_MS.
  */
 export const MAX_REQUESTS = 50
+export const MAX_WRITES = 5
 const RUNTIME_LIMITS = { cpuMs: 10_000 }
 
 /**
@@ -27,7 +31,7 @@ const RUNTIME_LIMITS = { cpuMs: 10_000 }
  */
 export class GscOutbound extends WorkerEntrypoint<Env, OutboundProps> {
   async fetch(request: Request): Promise<Response> {
-    const { token, runId } = this.ctx.props
+    const { token, runId, accessLevel } = this.ctx.props
     const base = new URL(this.env.GSC_API_BASE)
     const url = new URL(request.url)
 
@@ -48,9 +52,13 @@ export class GscOutbound extends WorkerEntrypoint<Env, OutboundProps> {
     }
 
     const known = { methodId: operation.methodId, httpMethod: request.method, property: operation.property ?? null, write: operation.write }
-    if (operation.write) {
-      addEntry(runId, { ...known, status: 'rejected', reason: 'writes are not enabled yet' })
-      return refuse(`${operation.methodId} changes data, and this server does not send writes yet.`)
+    if (operation.write && accessLevel !== 'full') {
+      addEntry(runId, { ...known, status: 'rejected', reason: 'read-only login' })
+      return refuse(`${operation.methodId} changes data. Your login is read-only. Log in again and choose full access.`)
+    }
+    if (operation.write && writeCount(runId) >= MAX_WRITES) {
+      addEntry(runId, { ...known, status: 'rejected', reason: 'write limit reached' })
+      return refuse(`One run may send at most ${MAX_WRITES} writes.`)
     }
 
     const index = addEntry(runId, { ...known, status: 'dispatched' })
@@ -128,7 +136,7 @@ declare const gsc: {
 
 Name the property in the path, URL-encoded. Find properties with sites.list. One website often has both a Domain property (sc-domain:example.com) and a URL-prefix property (https://example.com/), and they report different numbers, so always say which property you used.
 
-Only Search Console API methods from the spec can be sent. Writes are not enabled yet. One run may send at most ${MAX_REQUESTS} requests and must finish within 30 seconds.
+Only Search Console API methods from the spec can be sent. Writes (sites.add, sites.delete, sitemaps.submit, sitemaps.delete) need a full-access login; a read-only login refuses them. One run may send at most ${MAX_REQUESTS} requests, of which at most ${MAX_WRITES} writes, and must finish within 30 seconds.
 
 The response has two parts: "result" is what your code returned, and "callRecord" lists every request your code sent and what happened to it.
 
@@ -144,7 +152,7 @@ async () => {
 }`
 
 /** Register the execute tool (ADR-0001, ADR-0005, ADR-0006). */
-export function registerExecuteTool(server: McpServer, env: Env): void {
+export function registerExecuteTool(server: McpServer, env: Env, props: AuthProps): void {
   server.registerTool(
     'execute',
     {
@@ -156,13 +164,19 @@ export function registerExecuteTool(server: McpServer, env: Env): void {
       annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: true }
     },
     async ({ code }) => {
+      const cap = Number(env.DAILY_EXECUTE_CAP)
+      const taken = await takeDailyRun(env.OAUTH_KV, props.user.id, cap)
+      if (!taken.allowed) {
+        return formatError(`You have used your daily limit of ${cap} execute runs. It resets at ${taken.resetsAt}.`)
+      }
+
       const runId = crypto.randomUUID()
       openRun(runId)
       try {
         const result = await runInSandbox(env.LOADER, {
           code,
           prelude: prelude(env.GSC_API_BASE),
-          globalOutbound: exports.GscOutbound({ props: { token: env.GSC_ACCESS_TOKEN, runId } }),
+          globalOutbound: exports.GscOutbound({ props: { token: props.accessToken, runId, accessLevel: props.accessLevel } }),
           limits: RUNTIME_LIMITS,
           timeoutMs: Number(env.EXECUTE_TIMEOUT_MS)
         })

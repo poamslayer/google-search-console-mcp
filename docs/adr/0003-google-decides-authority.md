@@ -16,3 +16,7 @@ We copy Cloudflare's login design. `@cloudflare/workers-oauth-provider` sits in 
 - A new Google Cloud project owns the OAuth app and its quota. It is separate from the OAuth client that Arnold's current local Search Console server uses.
 - The app launches "In production" but unverified. Users see an unverified app warning, and Google allows at most 100 users in total. We chose this over "Testing" status because Google expires Testing refresh tokens after 7 days.
 - Before the URL is shared publicly, the app goes through Google's verification. Google needs a home page and a privacy policy on the verified domain, so the Worker serves both itself at `/` and `/privacy`.
+
+## Update, 2026-09-26: the scopes are non-sensitive
+
+When the project was set up, Google's console listed `webmasters` and `webmasters.readonly` under non-sensitive scopes. The points above assumed sensitive scopes. Google applies sensitive scope verification, the unverified app warning and the 100-user cap to sensitive and restricted scopes, so they may not apply to this app. Brand verification is still needed to show the app name on the consent screen. Check this against Google's current rules before the URL is shared.

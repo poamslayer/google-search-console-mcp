@@ -6,9 +6,16 @@ export default defineConfig({
     cloudflareTest({
       wrangler: { configPath: './wrangler.jsonc' },
       miniflare: {
-        // A dummy token so tests never depend on a local .dev.vars, and a short
-        // execute time limit so the timeout test runs in a second.
-        bindings: { GSC_ACCESS_TOKEN: 'test-access-token', EXECUTE_TIMEOUT_MS: '1000' }
+        // Dummy Google client values so tests never depend on a local .dev.vars,
+        // a short execute time limit so the timeout test runs in a second, and
+        // a daily cap small enough that the cap test stays quick.
+        bindings: {
+          GOOGLE_CLIENT_ID: 'test-client-id.apps.googleusercontent.com',
+          GOOGLE_CLIENT_SECRET: 'test-client-secret',
+          MCP_RESOURCE: 'http://localhost/mcp',
+          EXECUTE_TIMEOUT_MS: '1000',
+          DAILY_EXECUTE_CAP: '20'
+        }
       }
     })
   ],

@@ -34,6 +34,11 @@ export function entryCount(runId: string): number {
   return runs.get(runId)?.length ?? 0
 }
 
+/** Writes that were sent, or are being sent, in this run. */
+export function writeCount(runId: string): number {
+  return (runs.get(runId) ?? []).filter((entry) => entry.write && entry.status !== 'rejected').length
+}
+
 export function updateEntry(runId: string, index: number, update: Partial<CallRecordEntry>): void {
   const entry = runs.get(runId)?.[index]
   if (entry) Object.assign(entry, update)

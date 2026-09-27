@@ -81,7 +81,7 @@ describe('the execute tool', () => {
     })`)
     expect(sent).toBe(false)
     expect(result.result?.isError).toBe(true)
-    expect(text).toContain('sitemaps.submit changes data')
+    expect(text).toContain('Your login is read-only')
     expect(text).toContain('"status": "rejected"')
     expect(text).toContain('"write": true')
   })
