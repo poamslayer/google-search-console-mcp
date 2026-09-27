@@ -18,6 +18,16 @@ You need Node 24 (`nvm use` reads `.nvmrc`) and a Google OAuth client. The clien
 3. Start the server with `npm run dev`. It listens on `http://localhost:2530`.
 4. Add `http://localhost:2530/mcp` to your MCP client as an HTTP server. The client opens a browser for the Google login.
 
+## Deploy
+
+The server runs at `https://google-search-console-mcp.arnolddlv-1e4.workers.dev/mcp`. It needs the Workers Paid plan, because the sandbox uses the Dynamic Worker Loader.
+
+1. The Google OAuth client must be a **Web application** client, not a Desktop app client. It needs the redirect URI `https://google-search-console-mcp.arnolddlv-1e4.workers.dev/oauth/callback`.
+2. Upload the client with `wrangler secret put GOOGLE_CLIENT_ID` and `wrangler secret put GOOGLE_CLIENT_SECRET`.
+3. Deploy with `npm run deploy`.
+
+When you log in, Google shows a checkbox for Search Console. You must tick it, or the server refuses the login.
+
 ## Tests
 
 `npm run check` runs the typecheck and the tests. The tests run in Cloudflare's local runtime with the real Worker Loader, and MSW fakes Google.

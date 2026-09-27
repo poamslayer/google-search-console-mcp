@@ -188,7 +188,7 @@ export function createAuthHandlers() {
       if (!accessLevel) {
         return renderErrorPage(
           'Search Console access not granted',
-          'Google did not grant access to Search Console. Log in again and leave the Search Console box ticked.'
+          'Google did not grant access to Search Console. Log in again, and on Google\'s screen tick the box for Search Console before you click Continue.'
         )
       }
       const user = await fetchUser(tokens.access_token)
